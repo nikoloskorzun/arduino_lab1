@@ -67,12 +67,13 @@ public:
 
 	void send_data(byte data)
 	{
+    //data = 0 - 15
     #if DEBUG
       Serial.print("sending byte =");      
       Serial.println(data);
     #endif
     digitalWrite(this->pin_sig_out, HIGH);
-
+  data *= 16;
     analogWrite(this->pin_data_out, data);
     delay(this->delay_after_send);
     
@@ -84,7 +85,7 @@ public:
   {
     uint16_t duration;
     duration = pulseIn(this->pin_data_in, HIGH);
-    this->data_recieved = this->duration_to_byte(duration);
+    this->data_recieved = this->duration_to_byte(duration) / 16;
 
     #if DEBUG
       Serial.print("recieved duration =");      
@@ -163,21 +164,10 @@ void setup()
 void send(byte *data)
 {
 
-  (*data) = lab1.get_random_letter();
+  (*data) = lab1.code(lab1.get_random_letter());
   byte temp = *data;
   byte part1 = (temp & 0xf0) >> 4;
   byte part2 = (temp & 0x0f);
-
-  Bit_matrix w_part1 = number_to_bit_vector(part1, 4);
-  Bit_matrix w_part2 = number_to_bit_vector(part2, 4);
-
-  Bit_matrix res1 = codec.code(w_part1);
-  Bit_matrix res2 = codec.code(w_part2);
-  res1 = codec.convert_to_extended(res1);
-  res2 = codec.convert_to_extended(res2);
-
-  part1 = bit_vector_to_number(res1);
-  part2 = bit_vector_to_number(res2);
 
   channel.send_data(part1);
   channel.send_data(part2);
@@ -190,20 +180,11 @@ void recieve(byte* data)
   byte byte1 = channel.listen();
   delay(100);
   byte byte2 = channel.listen();
-
-  Bit_matrix w_part1 = number_to_bit_vector(byte1, 8);
-  Bit_matrix w_part2 = number_to_bit_vector(byte2, 8);
-
-  w_part1 = codec.decode_extended(w_part1);
-  w_part2 = codec.decode_extended(w_part2);
-
-  w_part1 = codec.get_word(w_part1);
-  w_part2 = codec.get_word(w_part2);
-
-  w_part1.right_append(w_part2);
-  *data = bit_vector_to_number(w_part1);
+  byte1<<=4;
+  byte1|=byte2;
+  byte1 = lab1.decode(byte1);
+  *data = byte1;
 }
-
 void loop()
 {
 byte data1, data2;
